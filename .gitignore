@@ -77,6 +77,9 @@ notebooks/patch_test.ipynb
 src/utils/utils_test.py
 src/utils/cp_utils.py
 scripts/test_script.py
+
+configs/default.yaml
 train.py
+src/utils/cli.py
 
 # private files & scripts related to training
