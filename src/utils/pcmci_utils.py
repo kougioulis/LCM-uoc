@@ -4,12 +4,13 @@ sys.path.append(".")
 import numpy as np
 import pandas as pd
 import torch
+import torchmetrics
 from tigramite import data_processing as pp
 from tigramite.independence_tests.gpdc import GPDC
 from tigramite.independence_tests.parcorr_wls import ParCorr
 from tigramite.pcmci import PCMCI
-
 from src.utils.transformation_utils import to_lagged_adj_ready
+from src.utils.utils import compute_roc_metrics
 
 
 def tensor_to_pcmci_res_modified(sample: torch.tensor, c_test: str, max_tau: int) -> np.array:
@@ -150,3 +151,152 @@ def run_inv_pcmciplus(sample: pd.DataFrame, c_test=None, max_tau: int=1, fdr_met
         out = torch.tensor(out)
     
     return out
+
+
+def run_pcmci_on_sample(sample: torch.Tensor, cond_test: str, max_lag: int=1) -> np.ndarray:
+    """
+    Run PCMCI on a single time-series sample.
+
+    Args:
+        sample (Tensor): Time-series sample (T x D).
+        cond_test (str): Conditional independence test object (e.g., `"ParCorr"`).
+        max_lag (int): Maximum time lag (default is `1`).
+
+    Returns:
+        np.ndarray: Corrected q-value matrix from PCMCI.
+    """
+    if isinstance(sample, (tuple, list)):
+        sample = torch.stack(sample) if isinstance(sample[0], torch.Tensor) else torch.tensor(sample)
+    elif not isinstance(sample, torch.Tensor):
+        raise ValueError(f"Unexpected sample type: {type(sample)}")
+
+    # Normalize data
+    sample = (sample - sample.mean(dim=0)) / (sample.std(dim=0) + 1e-6)
+
+    dataframe = pp.DataFrame(
+        sample.detach().numpy().astype(float),
+        datatime=np.arange(len(sample)),
+        var_names=np.arange(sample.shape[1]),
+    )
+
+    pcmci = PCMCI(dataframe=dataframe, cond_ind_test=cond_test, verbosity=0)
+    results = pcmci.run_pcmci(tau_min=0, tau_max=max_lag, pc_alpha=None)
+    q_matrix = pcmci.get_corrected_pvalues(
+        p_matrix=results["p_matrix"], fdr_method="fdr_bh"
+    )
+    return q_matrix[:,:,1:]  # exclude contemporaneous edges
+
+
+@timing
+def run_pcmci_on_dataset(dataset, cond_test: str = "ParCorr", max_lag: int = 3):
+    """
+    Apply PCMCI to an entire dataset.
+
+    Args:
+        dataset (Iterable[Tuple[Tensor, np.ndarray]]): List of (time-series, ground truth) tuples.
+        cond_test: Conditional independence test object.
+        max_lag (int): Maximum lag for PCMCI.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: Predicted q-values and ground truth graphs.
+    """
+    if cond_test == "GPDC":
+        cond_test = GPDC()
+    elif cond_test == "ParCorr":
+        cond_test = ParCorr()
+    else:
+        raise ValueError(f"Unsupported test type: {cond_test}")
+
+    results = []
+    labels = []
+
+    for data_sample, ground_truth in dataset:
+        q_matrix = run_pcmci_on_sample(data_sample, cond_test, max_lag=max_lag)
+        lagged_q = np.swapaxes(np.flip(q_matrix[:, :, 1:], axis=2), 0, 1)
+        results.append(lagged_q)
+        labels.append(ground_truth)
+
+    return np.stack(results, axis=0), np.stack(labels, axis=0)
+
+
+def apply_pcmci_to_dataloader(dataloader, test_type="GPDC"):
+    """
+    Apply PCMCI to a dataloader containing time-series batches.
+
+    Args:
+        dataloader (Iterable[Tuple[Tensor, Tensor]]): Iterable over `(x, y)` batches.
+        test_type (str): Conditional test (`"GPDC"` or `"ParCorr"`).
+
+    Returns:
+        Tuple[Tensor, Tensor]: Predicted q-values and ground truth labels.
+    """
+    cond_test = GPDC() if test_type == "GPDC" else ParCorr() if test_type == "ParCorr" else None
+    if cond_test is None:
+        raise ValueError(f"Unsupported test type: {test_type}")
+
+    all_preds, all_labels = [], []
+
+    for x_batch, y_batch in dataloader:
+        preds, _ = run_pcmci_on_dataset(x_batch, cond_test, max_lag=y_batch.shape[3])
+        all_preds.append(preds)
+        all_labels.append(y_batch)
+
+    return torch.Tensor(np.concatenate(all_preds)), torch.concat(all_labels)
+
+
+def evaluate_pcmci_direction_accuracy(data):
+    """
+    Evaluate directionality accuracy of PCMCI between two variables.
+
+    Args:
+        data (Tuple[Tensor, Tensor]): Tuple of (data, labels).
+
+    Returns:
+        float: Proportion of samples where correct direction is stronger.
+    """
+    cond_test = ParCorr()
+    x, _ = data
+    results, _ = run_pcmci_on_dataset(x, cond_test, max_lag=1)
+
+    results = torch.Tensor(results)
+    direction_correct = (
+        results[:, 0, 1].max(dim=1)[0] > results[:, 1, 0].max(dim=1)[0]
+    ).sum()
+
+    return direction_correct.item() / len(results)
+
+
+def compute_pcmci_roc_without_diagonal(dataloader, max_lag=1, num_vars=15):
+    """
+    Compute ROC/AUROC after masking diagonal self-dependencies.
+
+    Args:
+        dataloader (Iterable[Tuple[Tensor, Tensor]]): Data batches.
+        max_lag (int): Max lag to use in PCMCI.
+        num_vars (int): Number of variables in dataset.
+
+    Returns:
+        Tuple: ROC curve and AUROC score.
+    """
+    roc_metric = torchmetrics.classification.BinaryROC()
+    auroc_metric = torchmetrics.classification.BinaryAUROC()
+    cond_test = ParCorr()
+
+    preds_all, labels_all = [], []
+    for x_batch, y_batch in dataloader:
+        preds, _ = run_pcmci_on_dataset(x_batch, cond_test, max_lag=max_lag)
+        preds_all.append(torch.Tensor(preds))
+        labels_all.append(torch.Tensor(y_batch))
+
+    preds = torch.concat(preds_all, dim=0)
+    labels = torch.concat(labels_all, dim=0)
+
+    mask = ~torch.eye(num_vars, num_vars).flatten().bool()
+
+    def flatten_and_mask(batch):
+        return [x[:, :, 0].flatten()[mask] for x in batch]
+
+    masked_preds = torch.concat(flatten_and_mask(preds), dim=0)
+    masked_labels = torch.concat(flatten_and_mask(labels), dim=0)
+
+    return compute_roc_metrics(masked_preds, masked_labels, roc_metric, auroc_metric)
