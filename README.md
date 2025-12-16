@@ -1,5 +1,7 @@
 # Large Causal Models for Temporal Causal Discovery
 
+[![e-Locus Shield][locus-shield]][locus-link]
+
 ![Python 3.10](https://img.shields.io/badge/Python-3.10-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-black?logo=PyTorch)
 ![NumPy](https://img.shields.io/badge/-Numpy-013243?&logo=NumPy)
