@@ -21,7 +21,7 @@ Complete LaTeX source of the thesis text is available at: https://github.com/kou
 
 ## 📌 Overview
 
-[Overview of the Training and Inference (Causal Discovery) phase of an LCM.](assets/causal-foundation-model.pdf)
+[Overview of the Training and Inference (Causal Discovery) phase of an LCM.](assets/causal-foundation-model.png)
 
 Contributions of this dissertation can be summarized as follows:
 
