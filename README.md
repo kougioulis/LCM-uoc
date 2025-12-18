@@ -121,7 +121,7 @@ Due to GitHub size limitations, pretrained checkpoints are hosted externally on 
 
 ## Test Sets
 
-We additionally provide the test sets for the experimental evaluations, available via Google Drive links. The $f$MRI collections are available in the  `data` folder. 
+We additionally provide the test sets for the experimental evaluations, available via Google Drive links. The fMRI collections are available in the  `data` folder. 
 
 ### Synthetic
 
