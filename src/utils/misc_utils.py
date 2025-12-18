@@ -25,6 +25,7 @@ sys.path.append("..")
 from src.utils.metrics import custom_binary_metrics
 from src.utils.pcmci_utils import tensor_to_pcmci_res_modified
 from src.utils.dynotears_utils import run_dynotears_with_bootstrap
+from src.utils.cdml_utils import y_from_cdml_to_lagged_adj
 from src.utils.transformation_utils import from_fmri_to_lagged_adj
 from src.utils.utils import check_non_stationarity, to_stationary_with_finite_differences, lagged_batch_crosscorrelation, \
     run_varlingam_with_bootstrap
@@ -694,6 +695,222 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
     running_times_summary.to_csv(save_dir / f"running_times_summary_{dataset_label}.csv", index=False)
 
     print(f"\n Results saved to {out_dir}")
+
+
+def run_cdml_evaluation_experiments(
+    models: dict,
+    cdml_path: Path,
+    out_dir: Path,
+    MAX_VAR: int = 12,
+    MAX_LAG: int = 3,
+    N_RUNS: int = 5,
+    N_SAMPLING: int = 10,
+):
+    """
+    Evaluation for CDML data as in run_evaluation_experiments method.
+    """
+
+    cdml_path = Path(cdml_path)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    results_df = pd.DataFrame(columns=[
+        "model", "AUC_mean", "AUC_se", "TPR_mean", "TPR_se", "FPR_mean", "FPR_se",
+        "TNR_mean", "TNR_se", "FNR_mean", "FNR_se", "Precision_mean", "Precision_se",
+        "Recall_mean", "Recall_se", "F1_mean", "F1_se"
+    ])
+
+    results_dict = {}
+    per_sample_results = defaultdict(list)
+    running_times_dict = defaultdict(list)
+
+    print(f"Dataset: {Path(cdml_path).parent.stem}")
+
+    filenames = [
+        f.split("_data.csv")[0]
+        for f in os.listdir(cdml_path)
+        if f.endswith("_data.csv")
+    ]
+    print(f"Found {len(filenames)} CDML samples.")
+
+    for model_name, model in zip(models.keys(), models.values()):
+
+        print(f"\n___ {model_name} ___")
+
+        max_var = MAX_VAR
+        max_lag = MAX_LAG
+
+        # Your original logic
+        if model_name == "provided-trf-5V":
+            max_var = 5
+        elif ("deep" in model_name and ("_10_3" in model_name or "_12_3" in model_name)) \
+             or ("lcm" in model_name and "_12_3" in model_name):
+            max_var = 12
+            max_lag = 3
+
+        print(f"VAR: {max_var} | LAG: {max_lag}")
+
+        # Metrics to aggregate over runs
+        run_metrics = {
+            "AUC": [], "TPR": [], "FPR": [], "TNR": [], "FNR": [],
+            "Precision": [], "Recall": [], "F1": []
+        }
+
+        # Deterministic models → 1 run
+        if model_name in ["PCMCI", "DYNOTEARS", "VARLINGAM"]:
+            N_RUNS = 1
+
+        for run_id in range(N_RUNS):
+
+            seed = 42 + run_id
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+
+            print(f"\n |--- Run {run_id+1}/{N_RUNS} (seed={seed}) ---")
+
+            tpr_list, fpr_list, tnr_list, fnr_list = [], [], [], []
+            auc_list = []
+            precision_list, recall_list, f1_list = [], [], []
+
+            for filename in tqdm(filenames):
+
+                # Load CDML data
+                X_raw = pd.read_csv(cdml_path / f"{filename}_data.csv")
+                Y_raw = pd.read_csv(cdml_path / f"{filename}_target.csv", index_col="Unnamed: 0")
+
+                X = torch.tensor(X_raw.values, dtype=torch.float32)
+                X = (X - X.min()) / (X.max() - X.min())  # normalize
+                Y = y_from_cdml_to_lagged_adj(Y_raw)
+
+                # Skip incompatible samples
+                if X.shape[1] > max_var:
+                    continue
+                if Y.shape[1] > max_var or Y.shape[2] > max_lag:
+                    continue
+
+                # Padding
+                VAR_DIF = max_var - X.shape[1]
+                LAG_DIF = max_lag - Y.shape[2]
+
+                if VAR_DIF > 0:
+                    X = torch.cat([X, torch.normal(0, 0.01, (X.shape[0], VAR_DIF))], dim=1)
+                    Y = torch.nn.functional.pad(Y, (0, 0, 0, VAR_DIF, 0, VAR_DIF))
+                if LAG_DIF > 0:
+                    Y = torch.nn.functional.pad(Y, (LAG_DIF, 0, 0, 0, 0, 0))
+
+                tic = time.time()
+
+                if "LCM" in model_name:
+                    M = model.model.to("cpu").eval()
+                    if X.shape[0] > 500:
+                        batches = []
+                        for i in range(X.shape[0] // 500):
+                            batches.append(X[500 * i: 500 * (i + 1)])
+                        if 500 * (X.shape[0] // 500) < X.shape[0]:
+                            batches.append(X[500 * (X.shape[0] // 500):])
+                        preds = []
+                        for bs in batches:
+                            bs = bs.unsqueeze(0)
+                            with torch.no_grad():
+                                preds.append(torch.sigmoid(M((bs, lagged_batch_crosscorrelation(bs, 3)))))
+                        pred = torch.cat(preds, dim=0).mean(0).unsqueeze(0)
+                    else:
+                        with torch.no_grad():
+                            pred = torch.sigmoid(
+                                M((X.unsqueeze(0), lagged_batch_crosscorrelation(X.unsqueeze(0), 3)))
+                            )
+
+                elif model_name == "PCMCI":
+                    pred_np = tensor_to_pcmci_res_modified(X, c_test="ParCorr", max_tau=Y.shape[-1])
+                    pred = torch.from_numpy(pred_np.copy())
+
+                elif model_name == "DYNOTEARS":
+                    pred_np = run_dynotears_with_bootstrap(
+                        pd.DataFrame(X.numpy()),
+                        n_lags=max_lag,
+                        n_bootstrap=N_SAMPLING
+                    )
+                    pred = torch.from_numpy(pred_np)
+
+                elif model_name == "VARLINGAM":
+                    pred_np = run_varlingam_with_bootstrap(
+                        sample=X,
+                        max_lag=max_lag,
+                        n_sampling=N_SAMPLING,
+                        min_causal_effect=0.05,
+                    )
+                    pred = torch.from_numpy(pred_np)
+
+                else:
+                    raise NotImplementedError(f"Unknown model type: {model_name}")
+
+                tac = time.time()
+                running_times_dict[model_name].append(tac - tic)
+
+                if Y.sum() <= 0 or Y.sum() == np.prod(Y.shape):
+                    continue
+                if pred.sum() <= 0 or pred.sum() == np.prod(pred.shape):
+                    continue
+
+                tpr, fpr, tnr, fnr, auc = custom_binary_metrics(pred, Y, verbose=False)
+
+                precision = tpr / (tpr + fpr) if tpr + fpr != 0 else 0
+                recall = tpr / (tpr + fnr) if tpr + fnr != 0 else 0
+                f1 = 2 * (precision * recall) / (precision + recall) if precision + recall != 0 else 0
+
+                tpr_list.append(float(tpr))
+                fpr_list.append(float(fpr))
+                tnr_list.append(float(tnr))
+                fnr_list.append(float(fnr))
+                auc_list.append(float(auc))
+                precision_list.append(precision)
+                recall_list.append(recall)
+                f1_list.append(f1)
+
+                per_sample_results[model_name].append((filename, auc))
+
+            # store per-run means
+            for k, v in zip(["AUC","TPR","FPR","TNR","FNR","Precision","Recall","F1"],
+                            [auc_list, tpr_list, fpr_list, tnr_list, fnr_list,
+                             precision_list, recall_list, f1_list]):
+                run_metrics[k].append(np.mean(v))
+
+        def mean_se(x):
+            x = np.array(x)
+            return x.mean(), x.std(ddof=1) / np.sqrt(len(x))
+
+        means_ses = {k: mean_se(v) for k, v in run_metrics.items()}
+
+        results_df.loc[len(results_df), :] = [
+            model_name,
+            means_ses["AUC"][0], means_ses["AUC"][1],
+            means_ses["TPR"][0], means_ses["TPR"][1],
+            means_ses["FPR"][0], means_ses["FPR"][1],
+            means_ses["TNR"][0], means_ses["TNR"][1],
+            means_ses["FNR"][0], means_ses["FNR"][1],
+            means_ses["Precision"][0], means_ses["Precision"][1],
+            means_ses["Recall"][0], means_ses["Recall"][1],
+            means_ses["F1"][0], means_ses["F1"][1],
+        ]
+
+    display(results_df)
+
+    save_path = out_dir / "cdml_results_metrics.csv"
+    results_df.to_csv(save_path, index=False)
+    print(f"\nMetrics saved to: {save_path}")
+
+    model_pairs = list(combinations(per_sample_results.keys(), 2))
+    if len(model_pairs) > 0:
+        pairwise_df = perform_wilcoxon_test(per_sample_results)
+        display(pairwise_df)
+        pairwise_df.to_csv(out_dir / "pairwise_significance_cdml.csv", index=False)
+
+    running_times_df = pd.DataFrame({k: pd.Series(v) for k, v in running_times_dict.items()})
+    running_times_summary = running_times_df.aggregate(['mean','median','std','min','max']).T
+    running_times_summary.to_csv(out_dir / "running_times_summary_cdml.csv")
+
+    print(f"Running time summary saved to: {out_dir / 'running_times_summary_cdml.csv'}")
 
 
 def optimal_threshold_youden(y_true: np.ndarray, y_score: np.ndarray, bin_thresh: float=0.05) -> tuple:
