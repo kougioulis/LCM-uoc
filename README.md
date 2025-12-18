@@ -121,9 +121,9 @@ Due to GitHub size limitations, pretrained checkpoints are hosted externally on 
 
 ## Test Sets
 
-We additionally provide the test sets for the experimental evaluations, available via Google Drive links. The fMRI collections are available in the  `data` folder. 
+We additionally provide the test sets for the experimental evaluations, available via Google Drive links. The fMRI collections are available in the `data` folder. 
 
-### Synthetic
+### Synthetic (Holdout)
 
 - S_Joint
   [https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8](https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8)
@@ -131,7 +131,7 @@ We additionally provide the test sets for the experimental evaluations, availabl
   [https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs](https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs)
 
 
-### Semi-Synthetic
+### Semi-Synthetic (Out-of-distribution - Zero-shot)
 
 - fMRI-5
   [https://github.com/kougioulis/LCM-thesis/tree/main/data/fMRI_5](https://github.com/kougioulis/LCM-thesis/tree/main/data/fMRI_5)
@@ -144,17 +144,17 @@ We additionally provide the test sets for the experimental evaluations, availabl
 
 ### Simulated (Realistic)
 
-- Sim_45K
+- Sim_45K (In-distribution)
   [https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka](https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka)
-- AirQualityMS
+- AirQualityMS (Zero-shot)
   [https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O](https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O)
 
-### Mixture Collection
+### Mixture Collection (Holdout)
 
 - Synth_230K_Sim_45K
   [https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9](https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9)
 
-### Additional
+### Additional (Out-of-distribution)
 
 - CDML (Lawrence et al., 2020)
   [https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn](https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn) (not present in the main text, added for completeness.)
