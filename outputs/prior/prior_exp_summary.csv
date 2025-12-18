@@ -1,0 +1,9 @@
+Prior Type,Belief Strength %,AUC
+All Types,High (70-90%),0.9197891109383588
+All Types,Low (10-30%),0.9148313063798325
+False Edge Priors,High (70-90%),0.8859687338291543
+False Edge Priors,Low (10-30%),0.9024233306420686
+Path Exclusions,High (70-90%),0.9489925807885411
+Path Exclusions,Low (10-30%),0.9039104220851786
+True Edge Priors,High (70-90%),0.952244206654108
+True Edge Priors,Low (10-30%),0.9294313223059487
