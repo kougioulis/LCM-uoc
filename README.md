@@ -119,6 +119,86 @@ Due to GitHub size limitations, pretrained checkpoints are hosted externally on 
 
 ---
 
+## Quick Start
+
+This section demonstrates how to load a pretrained LCM and perform temporal causal discovery on a small illustrative time-series example. The goal is to show a minimal workflow. For a complete, end-to-end example with visualizations and evaluation metrics, see `illustrative_example.ipynb`.
+
+1. Load a pretrained model
+
+```python
+from pathlib import Path
+import sys
+import torch
+# Add project root to PYTHONPATH
+sys.path.append("..")
+
+from src.modules.lcm_module import LCMModule # import the model
+
+# Path to pretrained models (adjust)
+model_path = Path("/path/to/pretrained/checkpoints")
+
+# Load an LCM
+model = LCMModule.load_from_checkpoint(
+    model_path / "LCM_2.5M.ckpt"
+)
+
+device = "cpu" 
+M = model.model.to(device).eval()
+```
+
+2. Load the data
+
+```python
+from src.utils.misc_utils import run_illustrative_example
+
+# Model-specific params
+MAX_SEQ_LEN = 500
+MAX_LAG = 3
+MAX_VAR = 12
+
+X_cpd, Y_cpd = run_illustrative_example(n=MAX_SEQ_LEN)
+X_cpd = torch.tensor(X_cpd.values, dtype=torch.float32)
+```
+
+3. Preprocess the data
+
+```python
+# Normalize and pad
+X_cpd = (X_cpd - X_cpd.min()) / (X_cpd.max() - X_cpd.min())
+
+# Noise padding  
+if X_cpd.shape[0] < MAX_SEQ_LEN:
+    X_cpd = torch.cat([X_cpd, torch.normal(0, 0.01, (MAX_SEQ_LEN - X_cpd.shape[0], X_cpd.shape[1]))], dim=0)
+
+VAR_DIF, LAG_DIF = MAX_VAR - X_cpd.shape[1], MAX_LAG - Y_cpd.shape[2]
+if VAR_DIF > 0:
+    X_cpd = torch.cat([X_cpd, torch.normal(0, 0.01, (X_cpd.shape[0], VAR_DIF))], dim=1)
+    Y_cpd = torch.nn.functional.pad(Y_cpd, (0, 0, 0, VAR_DIF, 0, VAR_DIF), value=0.0)
+```
+
+3. Run inference (causal discovery)
+
+```python
+from src.utils.utils import lagged_batch_crosscorrelation
+
+with torch.no_grad():
+    corr = lagged_batch_crosscorrelation(X_cpd.unsqueeze(0), MAX_LAG)
+    pred = torch.sigmoid(M((X_cpd.unsqueeze(0), corr)))
+    for l in range(pred.shape[-1]):
+        pred[:,l,l] = 0
+```
+
+4. Compute performance metrics
+
+```python
+from src.utils.metrics import custom_binary_metrics
+
+print(f'AUC: {custom_binary_metrics(pred, Y_cpd)[0]}')
+```
+
+The output pred is a lagged adjacency tensor, where each slice corresponds to causal effects at a specific time lag. Higher values indicate stronger confidence in a directed causal relationship. For visualization of the predicted graphs, comparison to ground truth, and additional experiments (ablations, zero-shot transfer, realistic datasets), refer to the accompanying notebooks.
+
+
 ## Test Sets
 
 We additionally provide the test sets for the experimental evaluations, available via Google Drive links. The fMRI collections are available in the `data` folder. 
