@@ -47,7 +47,7 @@ Causal discovery for both cross-sectional and temporal data has traditionally fo
 ### Data Generation
 
 * Developed a high-fidelity synthetic data pipeline from ground-truth temporal SCMs.
-* Developed and utilized [**Temporal Causal-based Simulation (TCS)**](https://github.com/gkorgkolis/TCS): a generative methodology for creating *realistic* causal models and data from real multivariate time series.
+* Developed and utilized [**Temporal Causal-based Simulation (TCS)**](https://github.com/gkorgkolis/TCS): a generative methodology for creating *realistic* causal models and data from real multivariate time series. The generative methodology also includes a model selection approach (Adversarial Causal Tuning - ACT) that selects the optimal causal model under a Min-max scheme on the space of Classifier 2-sample tests (C2STs), treated as discriminators.
 
 ### Training at Scale
 
