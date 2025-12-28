@@ -163,7 +163,7 @@ def draw_nx(
             head_length=0.04,
         )
 
-def display_example( X,pred,Y, filter=None,  draw_labels=False):
+def display_example( X,pred,Y, filter=None, draw_labels=False):
     labels = ["A", "B", "C", "D", "E", "F", "G"]
 
     n_vars = pred.shape[2]
@@ -617,8 +617,8 @@ def var_ci(ds, max_lags=3):
         stack = []
         for lag_step in range(0, pred.shape[0], n_vars):
             # select lag subset of params
-            l = pred[lag_step : lag_step + n_vars].T
-            stack.append(l)
+            lag = pred[lag_step : lag_step + n_vars].T
+            stack.append(lag)
         # swap the axis to put lag in the back and flip the lag dimension
         y_ = np.flip(np.moveaxis(np.array(stack), 0, 2), axis=2)
         # calc standard metricsd.

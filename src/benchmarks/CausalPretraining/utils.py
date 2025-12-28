@@ -15,7 +15,8 @@ def test_dict_to_csv(metrics: dict, cfg: DictConfig):
     for x in metrics:
         try:
             metrics[x] = metrics[x].detach().numpy()
-        except:
+        except Exception as e:
+            print(e)
             metrics[x] = metrics[x].cpu().detach().numpy()
     pd.DataFrame.from_dict(
         data=metrics, orient='index').to_csv(cfg.tensorboard.save_dir + "/" + 'final_scoring.csv', header=False)

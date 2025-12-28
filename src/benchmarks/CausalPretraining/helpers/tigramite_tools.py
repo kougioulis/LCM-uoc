@@ -108,7 +108,7 @@ def pcmciplus_run_full_ds(dl, nonlinear=False):
 ##
 
 def pcmci_calc_aerosol(data):
-    c_test =  ParCorr()
+    c_test = ParCorr()
     stack_pred = []
     x, y = data
     res, t = pcmci_ci(x, c_test, max_lags=1)
