@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: Large Causal Models for Temporal Causal Discovery
+authors:
+  - family-names: Kougioulis
+    given-names: Nikolaos
+year: 2025
+type: thesis
+url: https://elocus.lib.uoc.gr/dlib/1/d/9/metadata-dlib-1764761882-792089-25440.tkl
+repository-code: https://github.com/kougioulis/LCM-thesis

@@ -6,6 +6,7 @@
 
 <div align="center">
 
+[![CodeFactor](https://www.codefactor.io/repository/github/kougioulis/lcm-uoc/badge)](https://www.codefactor.io/repository/github/kougioulis/lcm-uoc)
 ![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-black?logo=pytorch)
 ![NumPy](https://img.shields.io/badge/-NumPy-013243?\&logo=NumPy)
@@ -18,7 +19,6 @@
 Reproducibility experiments of MSc the Thesis *"Large Causal Models for Temporal Causal Discovery"* at the University of Crete (complete LaTeX source of the thesis text is available at: https://github.com/kougioulis/thesis).
 
 ---
-
 
 <div align="center">
 
@@ -42,30 +42,35 @@ Causal discovery for both cross-sectional and temporal data has traditionally fo
 ## Contributions
 
 ### Large Causal Models
-* Introduced Large Causal Models (LCMs); a family of scalable, pre-trained neural architectures for temporal causal discovery.
+* Introduced **Large Causal Models (LCMs)**; a family of scalable, pre-trained neural architectures for temporal causal discovery, under a supervised paradigm.
+* Demonstrated that LCMs achieve **strong zero-shot performance**, **robustness** to domain shift, and remain **competitive or superior** against established causal discovery benchmarks.
 
 ### Data Generation
 
-* Developed a high-fidelity synthetic data pipeline from ground-truth temporal SCMs.
-* Developed and utilized [**Temporal Causal-based Simulation (TCS)**](https://github.com/gkorgkolis/TCS): a generative methodology for creating *realistic* causal models and data from real multivariate time series. The generative methodology also includes a model selection approach (Adversarial Causal Tuning - ACT) that selects the optimal causal model under a Min-max scheme on the space of Classifier 2-sample tests (C2STs), treated as discriminators.
+* Developed a **high-fidelity** *synthetic* temporal SCM generation pipeline to support large-scale supervised training of LCMs.
+* Developed and utilized [**Temporal Causal-based Simulation (TCS)**](https://github.com/kougioulis/TCS): a generative methodology for creating *simulated* (*realistic*) causal models and corresponding datasets from real multivariate time series samples.
+  - **TCS** is used as a **causal model generation mechanism** to augment training of LCMs with realistic (ground truth TSCM, ground truth data) pairs
+  - As part of TCS, developed and employed a **causal model selection** (tuning) methodology **(Adversarial Causal Tuning - ACT)** that selects the *optimal causal model* under a *Min-max* scheme on the space of *Classifier 2-sample tests (C2STs)*, treated as discriminators. 
+  - ACT functions as an optimal **causal model selection criterion**, **rather than a generative method**, and is therefore a subcomponent of TCS. 
+  - Framed **TCS as a principled approach towards causal digital twins**, aiming to generate samples that are statistically indistinguishable from real data while remaining causally interpretable.
 
 ### Training at Scale
 
-* Generated hundreds of thousands of (data, graph) training pairs.
-* Demonstrated that mixtures of synthetic and realistic training data significantly improve generalization and zero-shot performance.
-* Identified optimal synthetic/realistic mixing ratios, that align with findings of works on time-series forecasting foundation models.
+* Generated *hundreds of thousands* of (data, graph) training pairs, including synthetic and simulated (using TCS).
+* Demonstrated that **mixtures** of *synthetic* and *realistic* training data **significantly improve generalization** and zero-shot performance.
+* Identified **optimal** synthetic/realistic mixing **ratios**, that align with findings of works on time-series forecasting foundation models.
 
-* Proposed regularizing term to suppress low-support edges and aid model performance.
-* Experimentally showed that using observed statistics during training and inference improves model performance.
+* Proposed a novel regularizing term to suppress low-support edges and aid model performance.
+* Experimentally showed that using observed statistics during training and inference **improves model performance**.
 
 ### Comparison with Existing Approaches
 
-* Benchmarked against established methods in temporal causal discovery and showcased competitive or superior performance across synthetic, semi-synthetic and realistic datasets
+* **Benchmarked** against established methods in temporal causal discovery and showcased competitive or superior performance across synthetic, semi-synthetic and realistic datasets
 * Demonstrated robustness under domain shift and zero-shot performance.
 
 ### Efficiency
 
-* Achieved significantly faster inference than classical temporal causal discovery methods, thus opening the path to real-time applications.
+* Achieved **significantly faster runtimes** than classical temporal causal discovery methods, thus opening the path to real-time applications.
 
 ---
 
@@ -240,7 +245,9 @@ We additionally provide the test sets for the experimental evaluations, availabl
 
 ## Citation
 
-If you find this work useful, please cite:
+This thesis is the canonical reference for the ideas and methods implemented in this repository and establishes authorship and priority, in accordance with standard academic research and examination practices.
+
+If you use this work, please cite:
 
 ```bibtex
 @mastersthesis{kougioulis2025large,
