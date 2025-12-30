@@ -16,7 +16,7 @@
 [![e-Locus](https://img.shields.io/badge/e--Locus-archive-9D2235?style=flat)](https://elocus.lib.uoc.gr/dlib/1/d/9/metadata-dlib-1764761882-792089-25440.tkl)
 </div>
 
-Reproducibility experiments of MSc the Thesis *"Large Causal Models for Temporal Causal Discovery"* at the University of Crete (complete LaTeX source of the thesis text is available at: https://github.com/kougioulis/thesis).
+Reproducibility experiments of the MSc Thesis *"Large Causal Models for Temporal Causal Discovery"* at the University of Crete (complete LaTeX source of the thesis text is available at: https://github.com/kougioulis/thesis).
 
 ---
 
