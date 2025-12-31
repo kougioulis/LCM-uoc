@@ -254,7 +254,7 @@ If you use this work, please cite:
   title   = {Large Causal Models for Temporal Causal Discovery},
   author  = {Kougioulis, Nikolaos},
   year    = {2025},
-  month   = nov,
+  month   = {nov},
   address = {Heraklion, Greece},
   url     = {https://elocus.lib.uoc.gr/dlib/1/d/9/metadata-dlib-1764761882-792089-25440.tkl},
   note    = {Available at the University of Crete e-repository},
